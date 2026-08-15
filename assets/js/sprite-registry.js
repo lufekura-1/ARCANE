@@ -67,22 +67,7 @@
   "monster_spider": "assets/images/creatures/spider.png",
   "monster_troll": "assets/images/creatures/troll.png",
   "oak_bow": "assets/images/equipment/bow.png",
-  "player_bow_down": "assets/images/characters/player.png",
-  "player_bow_left": "assets/images/characters/player.png",
-  "player_bow_right": "assets/images/characters/player.png",
-  "player_bow_up": "assets/images/characters/player.png",
-  "player_cast_down": "assets/images/characters/player.png",
-  "player_cast_left": "assets/images/characters/player.png",
-  "player_cast_right": "assets/images/characters/player.png",
-  "player_cast_up": "assets/images/characters/player.png",
-  "player_down": "assets/images/characters/player.png",
-  "player_left": "assets/images/characters/player.png",
-  "player_right": "assets/images/characters/player.png",
-  "player_sword_down": "assets/images/characters/player.png",
-  "player_sword_left": "assets/images/characters/player.png",
-  "player_sword_right": "assets/images/characters/player.png",
-  "player_sword_up": "assets/images/characters/player.png",
-  "player_up": "assets/images/characters/player.png",
+  "player_sheet": "assets/images/characters/player.png",
   "ranger_boots": "assets/images/equipment/boots.png",
   "rope_necklace": "assets/images/equipment/amulet.png",
   "royal_armor": "assets/images/equipment/armor.png",
@@ -121,7 +106,7 @@
   const prevStartBoss = window.startBoss;
 
   const ITEM_GENERIC = {
-    hero:'player_down', bow:'hunting_bow', sword:'soldier_sword', shield:'wooden_shield', helmet:'leather_helmet', armor:'leather_armor', legs:'cloth_legs', boots:'travel_boots', necklace:'rope_necklace', ring:'copper_ring', backpack:'backpack',
+    bow:'hunting_bow', sword:'soldier_sword', shield:'wooden_shield', helmet:'leather_helmet', armor:'leather_armor', legs:'cloth_legs', boots:'travel_boots', necklace:'rope_necklace', ring:'copper_ring', backpack:'backpack',
     health_potion:'health_potion', mana_potion:'mana_potion', wood_arrow:'wood_arrow', iron_arrow:'iron_arrow', steel_arrow:'steel_arrow', explosion_arrow:'explosion_arrow'
   };
   pixelIconData = function(type){
@@ -172,20 +157,29 @@
   // backgrounds already carry their props; this removes duplicate overlays.
   buildDecor=function(){return []};
 
-  function playerKey(now){
+  // The supplied character atlas has twelve columns (three animation frames for
+  // each direction) and five rows: idle, walk, bow, sword and holy magic.
+  function playerFrame(now){
+    const directions={down:0,right:3,up:6,left:9};
     const dir=hunt.hero.dir||'down',mode=hunt.hero.combatMode||'bow';
-    if(hunt.hero.castUntil>now && V12_DATA[`player_cast_${dir}`]) return `player_cast_${dir}`;
-    if(hunt.hero.attackUntil>now){
-      const p=`player_${mode==='melee'?'sword':'bow'}_${dir}`; if(V12_DATA[p]) return p;
-    }
-    return `player_${dir}`;
+    let row=hunt.hero.moveCd>0?1:0;
+    if(hunt.hero.attackUntil>now) row=mode==='melee'?3:2;
+    if(hunt.hero.castUntil>now) row=4;
+    return {col:(directions[dir]||0)+Math.floor(now/(row>1?90:180))%3,row};
+  }
+  function drawPlayerFrame(img,frame,x,y,w,h,alpha=1){
+    if(!img || !img.complete || !img.naturalWidth) return false;
+    const sw=img.naturalWidth/12,sh=img.naturalHeight/5;
+    ctx.save();ctx.globalAlpha=alpha;ctx.imageSmoothingEnabled=false;
+    ctx.drawImage(img,frame.col*sw,frame.row*sh,sw,sh,Math.round(x),Math.round(y),Math.round(w),Math.round(h));
+    ctx.restore();return true;
   }
   drawPaladin=function(now){
-    const p=cellCenter(hunt.hero.r,hunt.hero.c),g=gridGeom(),key=playerKey(now),img=V12_IMG[key];
-    const size=Math.min(g.cw,g.ch)*.88,x=p.x-size/2,y=p.y-size*.58;
-    if(now<hunt.speedUntil){fit(img,x-7,y,size,size,.20);fit(img,x-13,y,size,size,.11)}
-    if(!fit(img,x,y,size,size,1)) return prevDrawPaladin(now);
-    const barW=Math.min(g.cw*.68,72),barH=5,barY=p.y-size*.53-12;
+    const p=cellCenter(hunt.hero.r,hunt.hero.c),g=gridGeom(),img=V12_IMG.player_sheet,frame=playerFrame(now);
+    const height=Math.min(g.cw,g.ch)*1.08,width=height*.625,x=p.x-width/2,y=p.y-height*.64;
+    if(now<hunt.speedUntil){drawPlayerFrame(img,frame,x-7,y,width,height,.20);drawPlayerFrame(img,frame,x-13,y,width,height,.11)}
+    if(!drawPlayerFrame(img,frame,x,y,width,height,1)) return prevDrawPaladin(now);
+    const barW=Math.min(g.cw*.68,72),barH=5,barY=y-12;
     ctx.save();ctx.fillStyle='#070509';ctx.fillRect(Math.round(p.x-barW/2),Math.round(barY),Math.round(barW),barH);ctx.fillStyle='#b5243b';ctx.fillRect(Math.round(p.x-barW/2+1),Math.round(barY+1),Math.round((barW-2)*Math.max(0,profile.life/maxLife())),barH-2);ctx.strokeStyle='#b98a43';ctx.strokeRect(Math.round(p.x-barW/2)+.5,Math.round(barY)+.5,Math.round(barW)-1,barH-1);ctx.restore();
   };
 
